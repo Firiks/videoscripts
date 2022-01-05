@@ -48,4 +48,3 @@ if __name__ == "__main__":
             #batch move the generated sprites
             copyFile(spritefile)
             copyFile(vttfile)
-

@@ -7,7 +7,8 @@ import datetime
 import math
 import glob
 import pipes
-from dateutil import relativedelta
+import argparse
+from distutils.spawn import find_executable
 ##################################
 # Generate tooltip thumbnail images & corresponding WebVTT file for a video (e.g MP4).
 # Final product is one *_sprite.jpg file and one *_thumbs.vtt file.
@@ -24,15 +25,15 @@ from dateutil import relativedelta
 
 #TODO determine optimal number of images/segment distance based on length of video? (so longer videos don't have huge sprites)
 
-USE_SIPS = True #True to use sips if using MacOSX (creates slightly smaller sprites), else set to False to use ImageMagick
-THUMB_RATE_SECONDS=45 # every Nth second take a snapshot
-THUMB_WIDTH=100 #100-150 is width recommended by JWPlayer; I like smaller files
+USE_SIPS = bool(find_executable('sips')) #True to use sips if using MacOSX (creates slightly smaller sprites), else set to False to use ImageMagick
+THUMB_RATE_SECONDS=10 # every Nth second take a snapshot
+THUMB_WIDTH=320 #100-150 is width recommended by JWPlayer; I like smaller files
 SKIP_FIRST=True #True to skip a thumbnail of second 1; often not a useful image, plus JWPlayer doesn't seem to show it anyway, and user knows beginning without needing preview
 SPRITE_NAME = "sprite.jpg" #jpg is much smaller than png, so using jpg
 VTTFILE_NAME = "thumbs.vtt"
 THUMB_OUTDIR = "thumbs"
 USE_UNIQUE_OUTDIR = False #true to make a unique timestamped output dir each time, else False to overwrite/replace existing outdir
-TIMESYNC_ADJUST = -.5 #set to 1 to not adjust time (gets multiplied by thumbRate); On my machine,ffmpeg snapshots show earlier images than expected timestamp by about 1/2 the thumbRate (for one vid, 10s thumbrate->images were 6s earlier than expected;45->22s early,90->44 sec early)
+TIMESYNC_ADJUST = -1 #set to -1 to not adjust time (gets multiplied by thumbRate); On my machine,ffmpeg snapshots show earlier images than expected timestamp by about 1/2 the thumbRate (for one vid, 10s thumbrate->images were 6s earlier than expected;45->22s early,90->44 sec early)
 logger = logging.getLogger(sys.argv[0])
 logSetup=False
 
@@ -80,7 +81,7 @@ def makeOutDir(videofile):
     elif os.path.exists(newoutdir) and not USE_UNIQUE_OUTDIR:
         #remove previous contents if reusing outdir
         files = os.listdir(newoutdir)
-        print "Removing previous contents of output directory: %s" % newoutdir
+        print("Removing previous contents of output directory: %s" % newoutdir)
         for f in files:
             os.unlink(os.path.join(newoutdir,f))
     return newoutdir
@@ -91,7 +92,7 @@ def doCmd(cmd,logger=logger):  #execute a shell command and return/print its out
     output = None
     try:
         output = subprocess.check_output(args, stderr=subprocess.STDOUT) #pipe stderr into stdout
-    except Exception, e:
+    except Exception as e:
         ret = "ERROR   [%s] An exception occurred\n%s\n%s" % (datetime.datetime.now(),output,str(e))
         logger.error(ret)
         raise e #todo ?
@@ -187,7 +188,7 @@ def makevtt(spritefile,numsegments,coords,gridsize,writefile,thumbRate=None):
         end  = get_time_str(clipend,adjust=adjust)
         clipstart = clipend
         clipend += thumbRate
-        vtt.append("Img %d" % imgnum)
+        # vtt.append("Img %d" % imgnum)
         vtt.append("%s --> %s" % (start,end)) #00:00.000 --> 00:05.000
         vtt.append("%s#xywh=%s" % (basefile,xywh))
         vtt.append("") #Linebreak
@@ -201,8 +202,10 @@ def get_time_str(numseconds,adjust=None):
         seconds = max(numseconds + adjust, 0) #don't go below 0! can't have a negative timestamp
     else:
         seconds = numseconds
-    delta = relativedelta.relativedelta(seconds=seconds)
-    return "%02d:%02d:%02d.000" % (delta.hours,delta.minutes, delta.seconds)
+    h = seconds // 3600
+    m = (seconds - h*3600) // 60
+    s = (seconds - h*3600 - m*60) 
+    return "%02d:%02d:%02d.000" % (h, m, s)
 
 def get_grid_coordinates(imgnum,gridsize,w,h):
     """ given an image number in our sprite, map the coordinates to it in X,Y,W,H format"""
@@ -219,6 +222,11 @@ def makesprite(outdir,spritefile,coords,gridsize):
      base the sprite size on the number of thumbs we need to make into a grid."""
     grid = "%dx%d" % (gridsize,gridsize)
     cmd = "montage %s/tv*.jpg -tile %s -geometry %s %s" % (pipes.quote(outdir), grid, coords, pipes.quote(spritefile))#if video had more than 144 thumbs, would need to be bigger grid, making it big to cover all our case
+    doCmd(cmd)
+
+def cleanup(outdir):
+    "remove the individual thumbs"
+    cmd = ("rm %s" % ' '.join(map(lambda x: ('"%s"'%x), get_thumb_images(outdir))))
     doCmd(cmd)
 
 def writevtt(vttfile,contents):
@@ -260,6 +268,7 @@ def run(task, thumbRate=None):
 
     #convert small files into a single sprite grid
     makesprite(outdir,spritefile,coords,gridsize)
+    cleanup(outdir)
 
     #generate a vtt with coordinates to each image in sprite
     makevtt(spritefile,numfiles,coords,gridsize,task.getVTTFile(), thumbRate=thumbRate)
@@ -267,26 +276,42 @@ def run(task, thumbRate=None):
 def addLogging():
     global logSetup
     if not logSetup:
-        basescript = os.path.splitext(os.path.basename(sys.argv[0]))[0]
-        LOG_FILENAME = 'logs/%s.%s.log'% (basescript,datetime.datetime.now().strftime("%Y%m%d_%H%M%S")) #new log per job so we can run this program concurrently
-        #CONSOLE AND FILE LOGGING
-        print "Writing log to: %s" % LOG_FILENAME
-        if not os.path.exists('logs'):
-            os.makedirs('logs')
-        logger.setLevel(logging.DEBUG)
-        handler = logging.FileHandler(LOG_FILENAME)
-        logger.addHandler(handler)
+        if LOG_FILENAME:
+            #FILE LOGGING
+            print("Writing log to: %s" % LOG_FILENAME)
+            logs_dir = os.path.split(LOG_FILENAME)[0]
+            if logs_dir and not os.path.exists(logs_dir):
+                os.makedirs(logs_dir)
+            handler = logging.FileHandler(LOG_FILENAME)
+            handler.setLevel(logging.DEBUG)
+            logger.addHandler(handler)
+        #CONSOLE LOGGING
         ch = logging.StreamHandler()
-        ch.setLevel(logging.DEBUG)
+        ch.setLevel(logging.WARNING)
         logger.addHandler(ch)
+        logger.setLevel(logging.DEBUG)
         logSetup = True #set flag so we don't reset log in same batch
 
 
 if __name__ == "__main__":
-    if not len(sys.argv) > 1 :
-        sys.exit("Please pass the full path or url to the video file for which to create thumbnails.")
-    if len(sys.argv) == 3:
-        THUMB_OUTDIR = sys.argv[2]
-    videofile = sys.argv[1]
+
+    parser = argparse.ArgumentParser(description='generate sprites.',
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parser.add_argument('-r','--thumb_rate', help='every Nth second take a snapshot.', 
+        default=THUMB_RATE_SECONDS, type=int)
+    parser.add_argument('-w', '--width', help='width of thum images.',
+        default=THUMB_WIDTH, type=int)
+    parser.add_argument('--log_file', help="path to verbose log file.", 
+        default="")
+    parser.add_argument('videofile', help='full path or url to the video file for which to create thumbnails.')
+    parser.add_argument('out_dir', help='output directory.', nargs='?', default=THUMB_OUTDIR)
+    args = parser.parse_args()
+
+    THUMB_RATE_SECONDS = args.thumb_rate
+    THUMB_WIDTH = args.width
+    THUMB_OUTDIR = args.out_dir
+    LOG_FILENAME = args.log_file
+    videofile = args.videofile
+
     task = SpriteTask(videofile)
     run(task)
