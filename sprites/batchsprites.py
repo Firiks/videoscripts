@@ -34,7 +34,7 @@ if __name__ == "__main__":
     #optionally pass in a 2nd arg that is number for every Nth second you want to take a snapshot
     if len(sys.argv)> 2:
         thumbRate = int(sys.argv[2])
-        print "Taking snapshot every %d seconds" % thumbRate
+        print ("Taking snapshot every %d seconds" % thumbRate)
 
     with open (videolist) as fh:
         for video in fh:
