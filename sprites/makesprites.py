@@ -209,8 +209,8 @@ def get_time_str(numseconds,adjust=None):
 
 def get_grid_coordinates(imgnum,gridsize,w,h):
     """ given an image number in our sprite, map the coordinates to it in X,Y,W,H format"""
-    y = (imgnum - 1)/gridsize
-    x = (imgnum -1) - (y * gridsize)
+    y = int((imgnum - 1) / gridsize)
+    x = int((imgnum -1) - (y * gridsize))
     imgx = x * w
     imgy =y * h
     return "%s,%s,%s,%s" % (imgx,imgy,w,h)
