@@ -143,7 +143,7 @@ def get_geometry(file):
         100x2772+0+0 - sprite2.jpg
         4200x66+0+0 - sprite2h.jpg"""
     geom = doCmd("""identify -format "%%g - %%f\n" %s""" % pipes.quote(file))
-    parts = geom.split("-",1)
+    parts = geom.decode().split("-",1)
     return parts[0].strip() #return just the geometry prefix of the line, sans extra whitespace
 
 def makevtt(spritefile,numsegments,coords,gridsize,writefile,thumbRate=None):
