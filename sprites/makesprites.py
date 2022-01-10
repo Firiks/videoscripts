@@ -17,18 +17,14 @@ from distutils.spawn import find_executable
 #               optional: sips (comes with MacOSX) - yields slightly smaller sprites
 #    download ImageMagick: http://www.imagemagick.org/script/index.php OR http://www.imagemagick.org/script/binary-releases.php (on MacOSX: "sudo port install ImageMagick")
 #    download ffmpeg: http://www.ffmpeg.org/download.html
-# jwplayer reference: http://www.longtailvideo.com/support/jw-player/31778/adding-tooltip-thumbnails/
-#
-# TESTING NOTES: Tested putting time gaps between thumbnail segments, but had no visual effect in JWplayer, so omitted.
-#                Tested using an offset so that thumbnail would show what would display mid-way through clip rather than for the 1st second of the clip, but was not an improvement.
 ##################################
 
 #TODO determine optimal number of images/segment distance based on length of video? (so longer videos don't have huge sprites)
 
 USE_SIPS = bool(find_executable('sips')) #True to use sips if using MacOSX (creates slightly smaller sprites), else set to False to use ImageMagick
 THUMB_RATE_SECONDS=10 # every Nth second take a snapshot
-THUMB_WIDTH=320 #100-150 is width recommended by JWPlayer; I like smaller files
-SKIP_FIRST=True #True to skip a thumbnail of second 1; often not a useful image, plus JWPlayer doesn't seem to show it anyway, and user knows beginning without needing preview
+THUMB_WIDTH=160 # width in px
+SKIP_FIRST=True #True to skip a thumbnail of second 1;
 SPRITE_NAME = "sprite.jpg" #jpg is much smaller than png, so using jpg
 VTTFILE_NAME = "thumbs.vtt"
 THUMB_OUTDIR = "thumbs"
@@ -110,7 +106,7 @@ def takesnaps(videofile,newoutdir,thumbRate=None):
         thumbRate = THUMB_RATE_SECONDS
     rate = "1/%d" % thumbRate # 1/60=1 per minute, 1/120=1 every 2 minutes
     cmd = "ffmpeg -i %s -f image2 -bt 20M -vf fps=%s -aspect 16:9 %s/tv%%03d.jpg" % (pipes.quote(videofile), rate, pipes.quote(newoutdir))
-    doCmd (cmd)
+    doCmd(cmd)
     if SKIP_FIRST:
         #remove the first image
         logger.info("Removing first image, unneeded")
@@ -179,7 +175,6 @@ def makevtt(spritefile,numsegments,coords,gridsize,writefile,thumbRate=None):
         clipstart = thumbRate  #offset time to skip the first image
     else:
         clipstart = 0
-    # NOTE - putting a time gap between thumbnail end & next start has no visual effect in JWPlayer, so not doing it.
     clipend = clipstart + thumbRate
     adjust = thumbRate * TIMESYNC_ADJUST
     for imgnum in range(1,numsegments+1):
@@ -294,7 +289,6 @@ def addLogging():
 
 
 if __name__ == "__main__":
-
     parser = argparse.ArgumentParser(description='generate sprites.',
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument('-r','--thumb_rate', help='every Nth second take a snapshot.', 

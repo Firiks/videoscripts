@@ -11,7 +11,7 @@ import os
 # python batchsprites.py filelist.txt
 # python batchsprites.py filelist.txt 20  #thumbnail every 20 sec
 
-OUTPUT_FOLDER = "/Users/vlanard/myproject_git/ubuntu/proj/prototype/static/inc/th"
+OUTPUT_FOLDER = "videoscripts_batch"
 
 if not len(sys.argv) > 1 :
     sys.exit("Please pass the full path to file containing the video list for which to create thumbnails.")
@@ -19,6 +19,14 @@ if not len(sys.argv) > 1 :
 def copyFile(origfile):
     thefile = os.path.basename(origfile)
     prefix = thefile[:2] #store in subdirectory that begins with 2 letter prefix of the files within it
+    script = sys.argv[0]
+
+    basepath = os.path.dirname(os.path.abspath(script))
+    if len(OUTPUT_FOLDER)>0 and OUTPUT_FOLDER[0]=='/':
+        outputFolder = OUTPUT_FOLDER
+    else:
+        outputFolder = os.path.join(basepath,OUTPUT_FOLDER)
+
     outputFolder = os.path.join(OUTPUT_FOLDER,prefix)
     if not os.path.exists(outputFolder):
         try:

@@ -4,8 +4,7 @@ videoscripts
 
 sprites
 ============
-Python scripts to generate tooltip thumbnail images for videos (e.g. mp4,m4v)  & associated WebVTT files for use with JWPlayer.
-Written for MacOSX 10.9, Python 2.7, JWPlayer 6 but should be portable to all major OS's.
+Python scripts to generate tooltip thumbnail images for videos (e.g. mp4,m4v)  & associated WebVTT files.
 
 makesprites.py
 --------------
@@ -31,29 +30,9 @@ You may want to customize the the following variables in makesprites.py:
 
     USE_SIPS = True         # True if using MacOSX (creates slightly smaller sprites), else set to False to use ImageMagick resizing
     THUMB_RATE_SECONDS=45   # every Nth second take a snapshot of the video (tested with 30,45,60)
-    THUMB_WIDTH=100         # 100-150 is width recommended by JWPlayer, smaller size = smaller sprite for user to download
+    THUMB_WIDTH=100         # thhumb width in px
 
-And just for reference, here's a simplified version of my JWPlayer javascript that links the VTT file to my videos (which are listed in an external SMIL file). 
-
-    <script>
-    jwplayer('player1').setup({
-        width: '100%',
-        aspectratio: "711:400",
-        primary: "flash",
-        playlist: [{
-            sources: [{
-                file: "/video/smil/153/",
-                type: "rtmp",
-            }],
-            tracks:[{
-                file: "http://www.myserver.com/static/inc/th/myvideofile_thumbs.vtt",
-                kind: "thumbnails"
-            }]
-        }]
-    });
-    </script>
-    
-And a sample of a generated WebVTT file.
+A sample of a generated WebVTT file.
 
 <pre>
 WEBVTT
@@ -86,10 +65,6 @@ myvideofile_sprite.jpg#xywh=500,0,100,56
     
 batchsprites.py
 --------------
-Sample wrapper script for batch processing a bunch of videos, to make sprites & VTT files for each one, then copy them to a target folder,
-where they will be web-accessible by JWPlayer track URL.  Note - this URL must use same domain as your webserver (per JWPlayer). 
-(In development, you can modify your /etc/hosts file to point localhost.yourdomain.com to 127.0.0.1 to see sprites in action,
-assuming your local web server is configured to serve static files from this directory.)
 
 Expects a file name as input. File should be simple text file containing a list of video files (with fully qualified paths or relative paths from script directory).
 It generates thumbnails/sprites for each video, then copies the sprite & vtt file to a destination folder defined in the `OUTPUT_FOLDER` variable.
