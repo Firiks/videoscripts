@@ -6,3 +6,4 @@ thumbs/
 githubify.pl
 *.bak
 .vscode/launch.json
+logs/

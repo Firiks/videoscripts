@@ -287,7 +287,6 @@ def addLogging():
         logger.setLevel(logging.DEBUG)
         logSetup = True #set flag so we don't reset log in same batch
 
-
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='generate sprites.',
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
