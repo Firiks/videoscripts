@@ -28,6 +28,7 @@ SKIP_FIRST=True #True to skip a thumbnail of second 1;
 SPRITE_NAME = "sprite.jpg" #jpg is much smaller than png, so using jpg
 VTTFILE_NAME = "thumbs.vtt"
 THUMB_OUTDIR = "thumbs"
+NO_PREFIX_FOLDER = True # output directly to specified folder without any prefix
 USE_UNIQUE_OUTDIR = False #true to make a unique timestamped output dir each time, else False to overwrite/replace existing outdir
 TIMESYNC_ADJUST = -1 #set to -1 to not adjust time (gets multiplied by thumbRate); On my machine,ffmpeg snapshots show earlier images than expected timestamp by about 1/2 the thumbRate (for one vid, 10s thumbrate->images were 6s earlier than expected;45->22s early,90->44 sec early)
 logger = logging.getLogger(sys.argv[0])
@@ -42,9 +43,13 @@ class SpriteTask():
         basefile = os.path.basename(videofile)
         basefile_nospeed = removespeed(basefile) #strip trailing speed suffix from file/dir names, if present
         newoutdir = makeOutDir(basefile_nospeed)
-        fileprefix,ext = os.path.splitext(basefile_nospeed)
-        spritefile = os.path.join(newoutdir,"%s_%s" % (fileprefix,SPRITE_NAME))
-        vttfile = os.path.join(newoutdir,"%s_%s" % (fileprefix,VTTFILE_NAME))
+        if NO_PREFIX_FOLDER:
+            spritefile = os.path.join(newoutdir,SPRITE_NAME)
+            vttfile = os.path.join(newoutdir,VTTFILE_NAME)
+        else:
+            fileprefix,ext = os.path.splitext(basefile_nospeed)
+            spritefile = os.path.join(newoutdir,"%s_%s" % (fileprefix,SPRITE_NAME))
+            vttfile = os.path.join(newoutdir,"%s_%s" % (fileprefix,VTTFILE_NAME))
         self.videofile = videofile
         self.vttfile = vttfile
         self.spritefile = spritefile
@@ -69,6 +74,8 @@ def makeOutDir(videofile):
         outputdir = os.path.join(basepath,THUMB_OUTDIR)
     if USE_UNIQUE_OUTDIR:
         newoutdir = "%s.%s" % (os.path.join(outputdir,base),datetime.datetime.now().strftime("%Y%m%d_%H%M%S"))
+    elif NO_PREFIX_FOLDER:
+        newoutdir = outputdir
     else:
         newoutdir = "%s_%s" % (os.path.join(outputdir,base),"vtt")
     if not os.path.exists(newoutdir):
