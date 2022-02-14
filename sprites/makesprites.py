@@ -31,8 +31,8 @@ THUMB_OUTDIR = "thumbs"
 NO_PREFIX_FOLDER = True # output directly to specified folder without any prefix
 USE_UNIQUE_OUTDIR = False #true to make a unique timestamped output dir each time, else False to overwrite/replace existing outdir
 TIMESYNC_ADJUST = -1 #set to -1 to not adjust time (gets multiplied by thumbRate); On my machine,ffmpeg snapshots show earlier images than expected timestamp by about 1/2 the thumbRate (for one vid, 10s thumbrate->images were 6s earlier than expected;45->22s early,90->44 sec early)
-ORIGIN ='' # add custom origin
-REFERER = '' # add custom referer
+ORIGIN = "" # add custom origin
+REFERER = "" # add custom referer
 
 logger = logging.getLogger(sys.argv[0])
 logSetup=False
