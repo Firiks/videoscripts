@@ -31,11 +31,15 @@ THUMB_OUTDIR = "thumbs"
 NO_PREFIX_FOLDER = True # output directly to specified folder without any prefix
 USE_UNIQUE_OUTDIR = False #true to make a unique timestamped output dir each time, else False to overwrite/replace existing outdir
 TIMESYNC_ADJUST = -1 #set to -1 to not adjust time (gets multiplied by thumbRate); On my machine,ffmpeg snapshots show earlier images than expected timestamp by about 1/2 the thumbRate (for one vid, 10s thumbrate->images were 6s earlier than expected;45->22s early,90->44 sec early)
+ORIGIN ='' # add custom origin
+REFERER = '' # add custom referer
+
 logger = logging.getLogger(sys.argv[0])
 logSetup=False
 
+# small wrapper class as convenience accessor for external scripts
 class SpriteTask():
-    """small wrapper class as convenience accessor for external scripts"""
+    
     def __init__(self,videofile):
         self.remotefile = videofile.startswith("http")
         if not self.remotefile and not os.path.exists(videofile):
@@ -63,8 +67,8 @@ class SpriteTask():
     def getVTTFile(self):
         return self.vttfile
 
+# create unique output dir based on video file name and current timestamp
 def makeOutDir(videofile):
-    """create unique output dir based on video file name and current timestamp"""
     base,ext = os.path.splitext(videofile)
     script = sys.argv[0]
     basepath = os.path.dirname(os.path.abspath(script)) #make output dir always relative to this script regardless of shell directory
@@ -104,15 +108,13 @@ def doCmd(cmd,logger=logger):  #execute a shell command and return/print its out
     sys.stdout.flush()
     return output
 
+# take snapshot image of video every Nth second and output to sequence file names and custom directory
+# reference: https://trac.ffmpeg.org/wiki/Create%20a%20thumbnail%20image%20every%20X%20seconds%20of%20the%20video
 def takesnaps(videofile,newoutdir,thumbRate=None):
-    """
-    take snapshot image of video every Nth second and output to sequence file names and custom directory
-        reference: https://trac.ffmpeg.org/wiki/Create%20a%20thumbnail%20image%20every%20X%20seconds%20of%20the%20video
-    """
     if not thumbRate:
         thumbRate = THUMB_RATE_SECONDS
     rate = "1/%d" % thumbRate # 1/60=1 per minute, 1/120=1 every 2 minutes
-    cmd = "ffmpeg -i %s -f image2 -bt 20M -vf fps=%s -aspect 16:9 %s/tv%%03d.jpg" % (pipes.quote(videofile), rate, pipes.quote(newoutdir))
+    cmd = "ffmpeg -headers %s -headers %s -i %s -f image2 -bt 20M -vf fps=%s -aspect 16:9 %s/tv%%03d.jpg" % (pipes.quote("origin: " + ORIGIN), pipes.quote("referer: " + REFERER), pipes.quote(videofile), rate, pipes.quote(newoutdir))
     doCmd(cmd)
     if SKIP_FIRST:
         #remove the first image
@@ -126,10 +128,10 @@ def takesnaps(videofile,newoutdir,thumbRate=None):
 def get_thumb_images(newdir):
     return glob.glob("%s/tv*.jpg" % newdir)
 
+# change image output size to 100 width (originally matches size of video)
+#  - pass a list of files as string rather than use '*' with sips command because
+#  subprocess does not treat * as wildcard like shell does
 def resize(files):
-    """change image output size to 100 width (originally matches size of video)
-      - pass a list of files as string rather than use '*' with sips command because
-        subprocess does not treat * as wildcard like shell does"""
     if USE_SIPS:
         # HERE IS MAC SPECIFIC PROGRAM THAT YIELDS SLIGHTLY SMALLER JPGs
         doCmd("sips --resampleWidth %d %s" % (THUMB_WIDTH," ".join(map(pipes.quote, files))))
@@ -137,21 +139,20 @@ def resize(files):
         # THIS COMMAND WORKS FINE TOO AND COMES WITH IMAGEMAGICK, IF NOT USING A MAC
         doCmd("mogrify -geometry %dx %s" % (THUMB_WIDTH," ".join(map(pipes.quote, files))))
 
+# execute command to give geometry HxW+X+Y of each file matching command
+#  identify -format "%g - %f\n" *         #all files
+#  identify -format "%g - %f\n" onefile.jpg  #one file
+# SAMPLE OUTPUT
+#  100x66+0+0 - _tv001.jpg
+#  100x2772+0+0 - sprite2.jpg
+#  4200x66+0+0 - sprite2h.jpg
 def get_geometry(file):
-    """execute command to give geometry HxW+X+Y of each file matching command
-       identify -format "%g - %f\n" *         #all files
-       identify -format "%g - %f\n" onefile.jpg  #one file
-     SAMPLE OUTPUT
-        100x66+0+0 - _tv001.jpg
-        100x2772+0+0 - sprite2.jpg
-        4200x66+0+0 - sprite2h.jpg"""
     geom = doCmd("""identify -format "%%g - %%f\n" %s""" % pipes.quote(file))
     parts = geom.decode().split("-",1)
     return parts[0].strip() #return just the geometry prefix of the line, sans extra whitespace
 
+# generate & write vtt file mapping video time to each image's coordinates in our spritemap
 def makevtt(spritefile,numsegments,coords,gridsize,writefile,thumbRate=None):
-    """generate & write vtt file mapping video time to each image's coordinates
-    in our spritemap"""
     #split geometry string into individual parts
     ##4200x66+0+0     ===  WxH+X+Y
     if not thumbRate:
@@ -198,8 +199,8 @@ def makevtt(spritefile,numsegments,coords,gridsize,writefile,thumbRate=None):
     #output to file
     writevtt(writefile,vtt)
 
+# convert time in seconds to VTT format time (HH:)MM:SS.ddd
 def get_time_str(numseconds,adjust=None):
-    """ convert time in seconds to VTT format time (HH:)MM:SS.ddd"""
     if adjust: #offset the time by the adjust amount, if applicable
         seconds = max(numseconds + adjust, 0) #don't go below 0! can't have a negative timestamp
     else:
@@ -209,38 +210,38 @@ def get_time_str(numseconds,adjust=None):
     s = (seconds - h*3600 - m*60) 
     return "%02d:%02d:%02d.000" % (h, m, s)
 
+# given an image number in our sprite, map the coordinates to it in X,Y,W,H format
 def get_grid_coordinates(imgnum,gridsize,w,h):
-    """ given an image number in our sprite, map the coordinates to it in X,Y,W,H format"""
     y = int((imgnum - 1) / gridsize)
     x = int((imgnum -1) - (y * gridsize))
     imgx = x * w
     imgy =y * h
     return "%s,%s,%s,%s" % (imgx,imgy,w,h)
 
+# montage _tv*.jpg -tile 8x8 -geometry 100x66+0+0 montage.jpg  #GRID of images
+# NOT USING: convert tv*.jpg -append sprite.jpg     #SINGLE VERTICAL LINE of images
+# NOT USING: convert tv*.jpg +append sprite.jpg     #SINGLE HORIZONTAL LINE of images
+# base the sprite size on the number of thumbs we need to make into a grid.
 def makesprite(outdir,spritefile,coords,gridsize):
-    """montage _tv*.jpg -tile 8x8 -geometry 100x66+0+0 montage.jpg  #GRID of images
-           NOT USING: convert tv*.jpg -append sprite.jpg     #SINGLE VERTICAL LINE of images
-           NOT USING: convert tv*.jpg +append sprite.jpg     #SINGLE HORIZONTAL LINE of images
-     base the sprite size on the number of thumbs we need to make into a grid."""
     grid = "%dx%d" % (gridsize,gridsize)
     cmd = "montage %s/tv*.jpg -tile %s -geometry %s %s" % (pipes.quote(outdir), grid, coords, pipes.quote(spritefile))#if video had more than 144 thumbs, would need to be bigger grid, making it big to cover all our case
     doCmd(cmd)
 
+# remove the individual thumbs
 def cleanup(outdir):
-    "remove the individual thumbs"
     cmd = ("rm %s" % ' '.join(map(lambda x: ('"%s"'%x), get_thumb_images(outdir))))
     doCmd(cmd)
 
+# output VTT file
 def writevtt(vttfile,contents):
-    """ output VTT file """
     with open(vttfile,mode="w") as h:
         h.write(contents)
     logger.info("Wrote: %s" % vttfile)
 
+# some of my files are suffixed with datarate, e.g. myfile_3200.mp4;
+# this trims the speed from the name since it's irrelevant to my sprite names (which apply regardless of speed);
+# you won't need this if it's not relevant to your filenames
 def removespeed(videofile):
-    """some of my files are suffixed with datarate, e.g. myfile_3200.mp4;
-     this trims the speed from the name since it's irrelevant to my sprite names (which apply regardless of speed);
-     you won't need this if it's not relevant to your filenames"""
     videofile = videofile.strip()
     speed = videofile.rfind("_")
     speedlast = videofile.rfind(".")
@@ -303,6 +304,11 @@ if __name__ == "__main__":
         default=THUMB_WIDTH, type=int)
     parser.add_argument('--log_file', help="path to verbose log file.", 
         default="")
+    parser.add_argument('--referer', help="referer header.", 
+        default="")
+    parser.add_argument('--origin', help="origin header.", 
+        default="")
+
     parser.add_argument('videofile', help='full path or url to the video file for which to create thumbnails.')
     parser.add_argument('out_dir', help='output directory.', nargs='?', default=THUMB_OUTDIR)
     args = parser.parse_args()
@@ -311,6 +317,8 @@ if __name__ == "__main__":
     THUMB_WIDTH = args.width
     THUMB_OUTDIR = args.out_dir
     LOG_FILENAME = args.log_file
+    ORIGIN = args.origin
+    REFERER = args.referer
     videofile = args.videofile
 
     task = SpriteTask(videofile)
