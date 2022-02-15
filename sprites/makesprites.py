@@ -24,7 +24,7 @@ from distutils.spawn import find_executable
 USE_SIPS = bool(find_executable('sips')) #True to use sips if using MacOSX (creates slightly smaller sprites), else set to False to use ImageMagick
 THUMB_RATE_SECONDS=10 # every Nth second take a snapshot
 THUMB_WIDTH=160 # width in px
-SKIP_FIRST=True #True to skip a thumbnail of second 1;
+SKIP_FIRST=False #True to skip a thumbnail of second 1;
 SPRITE_NAME = "sprite.jpg" #jpg is much smaller than png, so using jpg
 VTTFILE_NAME = "thumbs.vtt"
 THUMB_OUTDIR = "thumbs"
