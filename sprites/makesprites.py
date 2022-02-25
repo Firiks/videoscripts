@@ -101,7 +101,7 @@ def doCmd(cmd,logger):  #execute a shell command and return/print its output
         output = subprocess.check_output(args, stderr=subprocess.STDOUT) #pipe stderr into stdout
     except Exception as e:
         ret = "ERROR   [%s] An exception occurred\n%s\n%s" % (datetime.datetime.now(),output,str(e))
-        logger.error(ret)
+        logger.exception(ret)
         raise e #todo ?
     ret = "END   [%s]\n%s" % (datetime.datetime.now(),output)
     logger.info(ret)
