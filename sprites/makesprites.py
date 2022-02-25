@@ -22,9 +22,9 @@ from distutils.spawn import find_executable
 #TODO determine optimal number of images/segment distance based on length of video? (so longer videos don't have huge sprites)
 
 USE_SIPS = bool(find_executable('sips')) #True to use sips if using MacOSX (creates slightly smaller sprites), else set to False to use ImageMagick
-THUMB_RATE_SECONDS=10 # every Nth second take a snapshot
-THUMB_WIDTH=160 # width in px
-SKIP_FIRST=False #True to skip a thumbnail of second 1;
+THUMB_RATE_SECONDS= 10 # every Nth second take a snapshot
+THUMB_WIDTH= 160 # width in px
+SKIP_FIRST= False #True to skip a thumbnail of second 1;
 SPRITE_NAME = "sprite.jpg" #jpg is much smaller than png, so using jpg
 VTTFILE_NAME = "thumbs.vtt"
 THUMB_OUTDIR = "thumbs"
@@ -93,7 +93,7 @@ def makeOutDir(videofile):
             os.unlink(os.path.join(newoutdir,f))
     return newoutdir
 
-def doCmd(cmd,logger=logger):  #execute a shell command and return/print its output
+def doCmd(cmd,logger):  #execute a shell command and return/print its output
     logger.info( "START [%s] : %s " % (datetime.datetime.now(), cmd))
     args = shlex.split(cmd) #tokenize args
     output = None
@@ -115,7 +115,7 @@ def takesnaps(videofile,newoutdir,thumbRate=None):
         thumbRate = THUMB_RATE_SECONDS
     rate = "1/%d" % thumbRate # 1/60=1 per minute, 1/120=1 every 2 minutes
     cmd = "ffmpeg -headers %s -headers %s -i %s -f image2 -bt 20M -vf fps=%s -aspect 16:9 %s/tv%%03d.jpg" % (pipes.quote("origin: " + ORIGIN), pipes.quote("referer: " + REFERER), pipes.quote(videofile), rate, pipes.quote(newoutdir))
-    doCmd(cmd)
+    doCmd(cmd,logger)
     if SKIP_FIRST:
         #remove the first image
         logger.info("Removing first image, unneeded")
@@ -134,10 +134,10 @@ def get_thumb_images(newdir):
 def resize(files):
     if USE_SIPS:
         # HERE IS MAC SPECIFIC PROGRAM THAT YIELDS SLIGHTLY SMALLER JPGs
-        doCmd("sips --resampleWidth %d %s" % (THUMB_WIDTH," ".join(map(pipes.quote, files))))
+        doCmd("sips --resampleWidth %d %s" % (THUMB_WIDTH," ".join(map(pipes.quote, files))),logger)
     else:
         # THIS COMMAND WORKS FINE TOO AND COMES WITH IMAGEMAGICK, IF NOT USING A MAC
-        doCmd("mogrify -geometry %dx %s" % (THUMB_WIDTH," ".join(map(pipes.quote, files))))
+        doCmd("mogrify -geometry %dx %s" % (THUMB_WIDTH," ".join(map(pipes.quote, files))),logger)
 
 # execute command to give geometry HxW+X+Y of each file matching command
 #  identify -format "%g - %f\n" *         #all files
@@ -147,7 +147,7 @@ def resize(files):
 #  100x2772+0+0 - sprite2.jpg
 #  4200x66+0+0 - sprite2h.jpg
 def get_geometry(file):
-    geom = doCmd("""identify -format "%%g - %%f\n" %s""" % pipes.quote(file))
+    geom = doCmd("""identify -format "%%g - %%f\n" %s""" % pipes.quote(file),logger)
     parts = geom.decode().split("-",1)
     return parts[0].strip() #return just the geometry prefix of the line, sans extra whitespace
 
@@ -225,12 +225,12 @@ def get_grid_coordinates(imgnum,gridsize,w,h):
 def makesprite(outdir,spritefile,coords,gridsize):
     grid = "%dx%d" % (gridsize,gridsize)
     cmd = "montage %s/tv*.jpg -tile %s -geometry %s %s" % (pipes.quote(outdir), grid, coords, pipes.quote(spritefile))#if video had more than 144 thumbs, would need to be bigger grid, making it big to cover all our case
-    doCmd(cmd)
+    doCmd(cmd,logger)
 
 # remove the individual thumbs
 def cleanup(outdir):
     cmd = ("rm %s" % ' '.join(map(lambda x: ('"%s"'%x), get_thumb_images(outdir))))
-    doCmd(cmd)
+    doCmd(cmd,logger)
 
 # output VTT file
 def writevtt(vttfile,contents):
