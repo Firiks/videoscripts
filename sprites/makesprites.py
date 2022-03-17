@@ -1,3 +1,4 @@
+import time
 import subprocess
 import shlex
 import sys
@@ -30,7 +31,7 @@ VTTFILE_NAME = "thumbs.vtt"
 THUMB_OUTDIR = "thumbs"
 NO_PREFIX_FOLDER = True # output directly to specified folder without any prefix
 USE_UNIQUE_OUTDIR = False #true to make a unique timestamped output dir each time, else False to overwrite/replace existing outdir
-TIMESYNC_ADJUST = -1 #set to -1 to not adjust time (gets multiplied by thumbRate); On my machine,ffmpeg snapshots show earlier images than expected timestamp by about 1/2 the thumbRate (for one vid, 10s thumbrate->images were 6s earlier than expected;45->22s early,90->44 sec early)
+TIMESYNC_ADJUST = 0 #set to 0 to not adjust time (gets multiplied by thumbRate); On my machine,ffmpeg snapshots show earlier images than expected timestamp by about 1/2 the thumbRate (for one vid, 10s thumbrate->images were 6s earlier than expected;45->22s early,90->44 sec early)
 ORIGIN = "" # add custom origin
 REFERER = "" # add custom referer
 
@@ -183,14 +184,21 @@ def makevtt(spritefile,numsegments,coords,gridsize,writefile,thumbRate=None):
         clipstart = thumbRate  #offset time to skip the first image
     else:
         clipstart = 0
+
     clipend = clipstart + thumbRate
-    adjust = thumbRate * TIMESYNC_ADJUST
+    adjust = 0
+
+    if TIMESYNC_ADJUST > 0:
+        adjust = thumbRate * TIMESYNC_ADJUST
+
     for imgnum in range(1,numsegments+1):
+        # print('imgnum',imgnum,'clipstart',clipstart,'clipend',clipend)
         xywh = get_grid_coordinates(imgnum,gridsize,w,h)
         start = get_time_str(clipstart,adjust=adjust)
         end  = get_time_str(clipend,adjust=adjust)
         clipstart = clipend
         clipend += thumbRate
+        print('start -->',start,'end',end)
         # vtt.append("Img %d" % imgnum)
         vtt.append("%s --> %s" % (start,end)) #00:00.000 --> 00:05.000
         vtt.append("%s#xywh=%s" % (basefile,xywh))
@@ -201,14 +209,11 @@ def makevtt(spritefile,numsegments,coords,gridsize,writefile,thumbRate=None):
 
 # convert time in seconds to VTT format time (HH:)MM:SS.ddd
 def get_time_str(numseconds,adjust=None):
-    if adjust: #offset the time by the adjust amount, if applicable
+    if adjust > 0: #offset the time by the adjust amount, if applicable
         seconds = max(numseconds + adjust, 0) #don't go below 0! can't have a negative timestamp
     else:
         seconds = numseconds
-    h = seconds // 3600
-    m = (seconds - h*3600) // 60
-    s = (seconds - h*3600 - m*60) 
-    return "%02d:%02d:%02d.000" % (h, m, s)
+    return str(time.strftime('%H:%M:%S', time.gmtime(seconds))) + ".000"
 
 # given an image number in our sprite, map the coordinates to it in X,Y,W,H format
 def get_grid_coordinates(imgnum,gridsize,w,h):
