@@ -34,6 +34,7 @@ USE_UNIQUE_OUTDIR = False #true to make a unique timestamped output dir each tim
 TIMESYNC_ADJUST = 0 #set to 0 to not adjust time (gets multiplied by thumbRate); On my machine,ffmpeg snapshots show earlier images than expected timestamp by about 1/2 the thumbRate (for one vid, 10s thumbrate->images were 6s earlier than expected;45->22s early,90->44 sec early)
 ORIGIN = "" # add custom origin
 REFERER = "" # add custom referer
+USER_AGENT = "" # add custom user agent
 
 logger = logging.getLogger(sys.argv[0])
 logSetup=False
@@ -115,7 +116,17 @@ def takesnaps(videofile,newoutdir,thumbRate=None):
     if not thumbRate:
         thumbRate = THUMB_RATE_SECONDS
     rate = "1/%d" % thumbRate # 1/60=1 per minute, 1/120=1 every 2 minutes
-    cmd = "ffmpeg -headers %s -headers %s -i %s -f image2 -bt 20M -vf fps=%s -aspect 16:9 %s/tv%%03d.jpg" % (pipes.quote("origin: " + ORIGIN), pipes.quote("referer: " + REFERER), pipes.quote(videofile), rate, pipes.quote(newoutdir))
+    
+    headers = ''
+    if REFERER:
+        headers = headers + 'Referer: ' + REFERER + '\\r\\n'
+    if ORIGIN:
+        headers = headers + 'Origin: ' + ORIGIN + '\\r\\n'
+    if USER_AGENT:
+        headers = headers + 'User-agent: ' + USER_AGENT + '\\r\\n'
+
+    cmd = "ffmpeg -headers $%s -i %s -f image2 -bt 20M -vf fps=%s -aspect 16:9 %s/tv%%03d.jpg" % (pipes.quote(headers), pipes.quote(videofile), rate, pipes.quote(newoutdir))
+
     doCmd(cmd,logger)
     if SKIP_FIRST:
         #remove the first image
@@ -303,15 +314,17 @@ def addLogging():
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='generate sprites.',
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument('-r','--thumb_rate', help='every Nth second take a snapshot.', 
+    parser.add_argument('-r','--thumb_rate', help='every Nth second take a snapshot.',
         default=THUMB_RATE_SECONDS, type=int)
     parser.add_argument('-w', '--width', help='width of thum images.',
         default=THUMB_WIDTH, type=int)
-    parser.add_argument('--log_file', help="path to verbose log file.", 
+    parser.add_argument('--log_file', help="path to verbose log file.",
         default="")
-    parser.add_argument('--referer', help="referer header.", 
+    parser.add_argument('--referer', help="referer header.",
         default="")
-    parser.add_argument('--origin', help="origin header.", 
+    parser.add_argument('--origin', help="origin header.",
+        default="")
+    parser.add_argument('--user_agent', help="user agent header.",
         default="")
 
     parser.add_argument('videofile', help='full path or url to the video file for which to create thumbnails.')
@@ -324,6 +337,8 @@ if __name__ == "__main__":
     LOG_FILENAME = args.log_file
     ORIGIN = args.origin
     REFERER = args.referer
+    USER_AGENT = args.user_agent
+
     videofile = args.videofile
 
     task = SpriteTask(videofile)
