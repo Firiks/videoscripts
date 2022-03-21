@@ -121,7 +121,7 @@ def takesnaps(videofile,newoutdir,thumbRate=None):
     origin = 'Origin: ' + ORIGIN
     ua = USER_AGENT 
 
-    cmd = "ffmpeg -headers %s -headers %s -user_agent %s -i %s -f image2 -bt 20M -vf fps=%s -aspect 16:9 %s/tv%%03d.jpg" % (pipes.quote(referer), pipes.quote(origin), pipes.quote(ua), pipes.quote(videofile), rate, pipes.quote(newoutdir))
+    cmd = "ffmpeg -headers %s -headers %s -user_agent %s -i %s -f image2 -bt 20M -vf fps=%s -aspect 16:9 %s/tv%%03d.jpg" % (quote_string(referer), quote_string(origin), quote_string(ua), quote_string(videofile), rate, quote_string(newoutdir))
 
     doCmd(cmd,logger)
     if SKIP_FIRST:
@@ -155,7 +155,7 @@ def resize(files):
 #  100x2772+0+0 - sprite2.jpg
 #  4200x66+0+0 - sprite2h.jpg
 def get_geometry(file):
-    geom = doCmd("""identify -format "%%g - %%f\n" %s""" % pipes.quote(file),logger)
+    geom = doCmd("""identify -format "%%g - %%f\n" %s""" % quote_string(file),logger)
     parts = geom.decode().split("-",1)
     return parts[0].strip() #return just the geometry prefix of the line, sans extra whitespace
 
@@ -236,7 +236,7 @@ def get_grid_coordinates(imgnum,gridsize,w,h):
 # base the sprite size on the number of thumbs we need to make into a grid.
 def makesprite(outdir,spritefile,coords,gridsize):
     grid = "%dx%d" % (gridsize,gridsize)
-    cmd = "montage %s/tv*.jpg -tile %s -geometry %s %s" % (pipes.quote(outdir), grid, coords, pipes.quote(spritefile))#if video had more than 144 thumbs, would need to be bigger grid, making it big to cover all our case
+    cmd = "montage %s/tv*.jpg -tile %s -geometry %s %s" % (quote_string(outdir), grid, coords, quote_string(spritefile))#if video had more than 144 thumbs, would need to be bigger grid, making it big to cover all our case
     doCmd(cmd,logger)
 
 # remove the individual thumbs
@@ -306,6 +306,9 @@ def addLogging():
         logger.addHandler(ch)
         logger.setLevel(logging.DEBUG)
         logSetup = True #set flag so we don't reset log in same batch
+
+def quote_string(string):
+    return '\'' + str(string) + '\''
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='generate sprites.',
