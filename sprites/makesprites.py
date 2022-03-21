@@ -117,15 +117,11 @@ def takesnaps(videofile,newoutdir,thumbRate=None):
         thumbRate = THUMB_RATE_SECONDS
     rate = "1/%d" % thumbRate # 1/60=1 per minute, 1/120=1 every 2 minutes
     
-    headers = ''
-    if REFERER:
-        headers = headers + 'Referer: ' + REFERER + '\\r\\n'
-    if ORIGIN:
-        headers = headers + 'Origin: ' + ORIGIN + '\\r\\n'
-    if USER_AGENT:
-        headers = headers + 'User-agent: ' + USER_AGENT + '\\r\\n'
+    referer = 'Referer: ' + REFERER
+    origin = 'Origin: ' + ORIGIN
+    ua = USER_AGENT 
 
-    cmd = "ffmpeg -headers $%s -i %s -f image2 -bt 20M -vf fps=%s -aspect 16:9 %s/tv%%03d.jpg" % (pipes.quote(headers), pipes.quote(videofile), rate, pipes.quote(newoutdir))
+    cmd = "ffmpeg -headers %s -headers %s -user_agent %s -i %s -f image2 -bt 20M -vf fps=%s -aspect 16:9 %s/tv%%03d.jpg" % (pipes.quote(referer), pipes.quote(origin), pipes.quote(ua), pipes.quote(videofile), rate, pipes.quote(newoutdir))
 
     doCmd(cmd,logger)
     if SKIP_FIRST:
